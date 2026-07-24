@@ -3,14 +3,16 @@ Documentação Técnica: Aplicativo de Teste de Largura de Banda
 O aplicativo em questão é uma interface gráfica (GUI) desenvolvida para testes de desempenho de rede, atuando como um cliente para ferramentas de medição de largura de banda (tipicamente baseadas no iperf3). Ele permite que administradores de rede e suporte técnico avaliem a velocidade de Upload, Download ou tráfego bidirecional (Ambos) entre a estação de trabalho e um servidor remoto.
 
 2. Componentes da Interface (UI) e Funcionalidades
-A. Dados do Servidor
+
+
+Dados do Servidor
 Configuração do endpoint remoto onde o serviço de testes está escutando.
 
 IP/Host: Campo de entrada para o endereço IP ou domínio do servidor de testes (ex: 200.152.98.6).
 
 Porta: Porta de comunicação utilizada pelo servidor (padrão comum: 5201).
 
-B. Configurações do Teste
+Configurações do Teste
 Parâmetros que definem o comportamento e o tipo de tráfego gerado durante a execução.
 
 Protocolo:
