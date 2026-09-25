@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # Aumente esta versão ao publicar uma nova atualização do script na branch main.
-APP_VERSION = (1, 1, 0)
+APP_VERSION = (1, 1, 1)
 UPDATE_URL = "https://raw.githubusercontent.com/fernandoalvesbr/IperfGui/main/iperf3gui.py"
 
 
@@ -474,9 +474,14 @@ class IperfApp(ctk.CTk):
             update_bar, text="Verificar atualizações", command=self.verificar_atualizacoes)
         self.update_button.pack(side="right")
         self.tabs = ctk.CTkTabview(self, fg_color="#282a36", anchor="nw")
-        self.tabs.pack(fill="both", expand=True, padx=20, pady=20)
-        self.main_frame = self.tabs.add("Modo cliente")
-        self.server_frame = self.tabs.add("Modo servidor")
+        self.tabs.pack(fill="both", expand=True, padx=16, pady=(8, 16))
+        client_tab = self.tabs.add("Modo cliente")
+        server_tab = self.tabs.add("Modo servidor")
+        # A rolagem preserva a altura dos controles em telas pequenas ou com escala alta.
+        self.main_frame = ctk.CTkScrollableFrame(client_tab, fg_color="transparent")
+        self.main_frame.pack(fill="both", expand=True)
+        self.server_frame = ctk.CTkScrollableFrame(server_tab, fg_color="transparent")
+        self.server_frame.pack(fill="both", expand=True)
         
         # Define 2 colunas principais simétricas para o topo
         self.main_frame.columnconfigure(0, weight=1)
@@ -484,7 +489,7 @@ class IperfApp(ctk.CTk):
 
         # --- Dados do Servidor ---
         label_server = ctk.CTkLabel(self.main_frame, text="Dados do Servidor:", font=ctk.CTkFont(size=14, weight="bold"))
-        label_server.grid(row=0, column=0, sticky="w", padx=20, pady=(20, 5))
+        label_server.grid(row=0, column=0, sticky="w", padx=20, pady=(8, 5))
 
         server_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
         server_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=20, pady=(0, 10))
@@ -501,7 +506,7 @@ class IperfApp(ctk.CTk):
         self.entry_port.insert(0, "5201")
 
         # --- Separador ---
-        ctk.CTkFrame(self.main_frame, height=1, fg_color="#44475a").grid(row=2, column=0, columnspan=2, sticky="ew", padx=20, pady=12)
+        ctk.CTkFrame(self.main_frame, height=1, fg_color="#44475a").grid(row=2, column=0, columnspan=2, sticky="ew", padx=20, pady=4)
 
         # --- Configurações do Teste ---
         label_config = ctk.CTkLabel(self.main_frame, text="Configurações do Teste:", font=ctk.CTkFont(size=14, weight="bold"))
@@ -517,14 +522,14 @@ class IperfApp(ctk.CTk):
         
         # Col 0: Protocolo
         ctk.CTkLabel(config_frame, text="Protocolo:", font=ctk.CTkFont(size=12, weight="bold"), text_color="#bd93f9").grid(row=0, column=0, sticky="w", pady=(0, 6))
-        ctk.CTkRadioButton(config_frame, text="TCP", variable=self.protocol_var, value="TCP").grid(row=1, column=0, sticky="w", pady=6)
-        ctk.CTkRadioButton(config_frame, text="UDP", variable=self.protocol_var, value="UDP").grid(row=2, column=0, sticky="w", pady=6)
+        ctk.CTkRadioButton(config_frame, text="TCP", variable=self.protocol_var, value="TCP").grid(row=1, column=0, sticky="w", pady=4)
+        ctk.CTkRadioButton(config_frame, text="UDP", variable=self.protocol_var, value="UDP").grid(row=2, column=0, sticky="w", pady=4)
 
         # Col 1: Direção
         ctk.CTkLabel(config_frame, text="Direção:", font=ctk.CTkFont(size=12, weight="bold"), text_color="#bd93f9").grid(row=0, column=1, sticky="w", pady=(0, 6))
-        ctk.CTkRadioButton(config_frame, text="Upload", variable=self.direction_var, value="Upload").grid(row=1, column=1, sticky="w", pady=6)
-        ctk.CTkRadioButton(config_frame, text="Download", variable=self.direction_var, value="Download").grid(row=2, column=1, sticky="w", pady=6)
-        ctk.CTkRadioButton(config_frame, text="Ambos", variable=self.direction_var, value="Ambos").grid(row=3, column=1, sticky="w", pady=6)
+        ctk.CTkRadioButton(config_frame, text="Upload", variable=self.direction_var, value="Upload").grid(row=1, column=1, sticky="w", pady=4)
+        ctk.CTkRadioButton(config_frame, text="Download", variable=self.direction_var, value="Download").grid(row=2, column=1, sticky="w", pady=4)
+        ctk.CTkRadioButton(config_frame, text="Ambos", variable=self.direction_var, value="Ambos").grid(row=3, column=1, sticky="w", pady=4)
 
         # Col 2: Parâmetros
         params_frame = ctk.CTkFrame(config_frame, fg_color="transparent")
@@ -533,12 +538,12 @@ class IperfApp(ctk.CTk):
         
         ctk.CTkLabel(params_frame, text="Threads (-P):").grid(row=1, column=0, sticky="w", pady=6, padx=(0, 8))
         self.entry_threads = ctk.CTkEntry(params_frame, width=65, border_color="#44475a")
-        self.entry_threads.grid(row=1, column=1, sticky="w", pady=6)
+        self.entry_threads.grid(row=1, column=1, sticky="w", pady=4)
         self.entry_threads.insert(0, "1")
 
         ctk.CTkLabel(params_frame, text="Tempo (seg):").grid(row=2, column=0, sticky="w", pady=6, padx=(0, 8))
         self.entry_time = ctk.CTkEntry(params_frame, width=65, border_color="#44475a")
-        self.entry_time.grid(row=2, column=1, sticky="w", pady=6)
+        self.entry_time.grid(row=2, column=1, sticky="w", pady=4)
         self.entry_time.insert(0, "10")
 
         ctk.CTkLabel(params_frame, text="Banda UDP:").grid(row=3, column=0, sticky="w", pady=6, padx=(0, 8))
@@ -549,16 +554,16 @@ class IperfApp(ctk.CTk):
             state="disabled",
             values=["10M","50M","100M","200M","300M","400M","500M","600M","700M","800M","900M","1000M"]
         )
-        self.combo_bandwidth.grid(row=3, column=1, sticky="w", pady=6)
+        self.combo_bandwidth.grid(row=3, column=1, sticky="w", pady=4)
 
         # --- Separador e Status ---
-        ctk.CTkFrame(self.main_frame, height=1, fg_color="#44475a").grid(row=5, column=0, columnspan=2, sticky="ew", padx=20, pady=12)
+        ctk.CTkFrame(self.main_frame, height=1, fg_color="#44475a").grid(row=5, column=0, columnspan=2, sticky="ew", padx=20, pady=4)
         self.status_label = ctk.CTkLabel(self.main_frame, text="Pressione ENTER para iniciar.", text_color="#f8f8f2")
         self.status_label.grid(row=6, column=0, columnspan=2, pady=(0, 10))
 
         # --- Botões de Ação ---
         btn_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
-        btn_frame.grid(row=7, column=0, columnspan=2, sticky="ew", padx=20, pady=(0, 15))
+        btn_frame.grid(row=7, column=0, columnspan=2, sticky="ew", padx=20, pady=(0, 8))
         btn_frame.columnconfigure(0, weight=1)
         btn_frame.columnconfigure(1, weight=1)
         btn_frame.columnconfigure(2, weight=1)
@@ -573,7 +578,7 @@ class IperfApp(ctk.CTk):
         self.btn_clear.grid(row=0, column=2, sticky="ew", padx=(5, 0))
 
         # --- Gráfico Vetorial ---
-        self.fig, self.ax = plt.subplots(figsize=(6, 2.5), dpi=100)
+        self.fig, self.ax = plt.subplots(figsize=(6, 2.6), dpi=100, constrained_layout=True)
         self.fig.patch.set_facecolor('#282a36')
         self.ax.set_facecolor('#191a21')
         self.ax.tick_params(colors='#f8f8f2', labelsize=9)
@@ -585,26 +590,27 @@ class IperfApp(ctk.CTk):
             spine.set_color('#44475a')
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self.main_frame)
+        self.canvas.get_tk_widget().configure(height=260, width=1)
         self.canvas.get_tk_widget().grid(row=8, column=0, columnspan=2, sticky="nsew", padx=20, pady=(0, 10))
 
         # --- Console ---
-        self.console = ctk.CTkTextbox(self.main_frame, fg_color="#191a21", text_color="#f8f8f2", wrap="none")
+        self.console = ctk.CTkTextbox(self.main_frame, height=150, fg_color="#191a21", text_color="#f8f8f2", wrap="none")
         self.console.grid(row=9, column=0, columnspan=2, sticky="nsew", padx=20, pady=(0, 20))
         
         # PESOS DINÂMICOS: Garante que o Gráfico e a Consola expandem de forma equilibrada
         # Gráfico recebe peso 3 (ligeiramente maior), Consola recebe peso 2
-        self.main_frame.rowconfigure(8, weight=3)
-        self.main_frame.rowconfigure(9, weight=2)
+        self.main_frame.rowconfigure(8, weight=3, minsize=270)
+        self.main_frame.rowconfigure(9, weight=2, minsize=170)
 
 
 
     def criar_interface_servidor(self):
         frame = self.server_frame
         frame.columnconfigure(0, weight=1)
-        frame.rowconfigure(3, weight=3)
-        frame.rowconfigure(4, weight=2)
+        frame.rowconfigure(3, weight=3, minsize=320)
+        frame.rowconfigure(4, weight=2, minsize=220)
         ctk.CTkLabel(frame, text="Servidor iPerf3", font=ctk.CTkFont(size=16, weight="bold")).grid(
-            row=0, column=0, sticky="w", padx=20, pady=(20, 10))
+            row=0, column=0, sticky="w", padx=20, pady=(8, 10))
         controls = ctk.CTkFrame(frame, fg_color="transparent")
         controls.grid(row=1, column=0, sticky="ew", padx=20, pady=10)
         controls.columnconfigure(2, weight=1)
@@ -622,7 +628,7 @@ class IperfApp(ctk.CTk):
         self.server_clear_button.grid(row=0, column=3, sticky="ew", padx=(10, 0))
         self.server_status = ctk.CTkLabel(frame, text="Servidor parado.")
         self.server_status.grid(row=2, column=0, pady=10)
-        self.server_fig, self.server_ax = plt.subplots(figsize=(6, 2.5), dpi=100)
+        self.server_fig, self.server_ax = plt.subplots(figsize=(6, 2.6), dpi=100, constrained_layout=True)
         self.server_fig.patch.set_facecolor("#282a36")
         self.server_ax.set_facecolor("#191a21")
         self.server_ax.tick_params(colors="#f8f8f2", labelsize=9)
@@ -632,10 +638,10 @@ class IperfApp(ctk.CTk):
         self.server_ax.grid(True, color="#44475a", linestyle="--", alpha=0.3)
         for spine in self.server_ax.spines.values():
             spine.set_color("#44475a")
-        self.server_fig.tight_layout()
         self.server_canvas = FigureCanvasTkAgg(self.server_fig, master=frame)
+        self.server_canvas.get_tk_widget().configure(height=300, width=1)
         self.server_canvas.get_tk_widget().grid(row=3, column=0, sticky="nsew", padx=20, pady=10)
-        self.server_console = ctk.CTkTextbox(frame, fg_color="#191a21", text_color="#f8f8f2", wrap="none")
+        self.server_console = ctk.CTkTextbox(frame, height=200, fg_color="#191a21", text_color="#f8f8f2", wrap="none")
         self.server_console.grid(row=4, column=0, sticky="nsew", padx=20, pady=(0, 20))
         self._log_servidor("> Seu IP local: identificando...")
         self._log_servidor("> Seu IP público: consultando...")
@@ -831,10 +837,10 @@ class IperfApp(ctk.CTk):
             light_image=img, dark_image=img, size=(130, 50))
         self.client_logo = ctk.CTkLabel(
             self.main_frame, image=self._logo_img, text="", fg_color="transparent")
-        self.client_logo.grid(row=0, column=1, sticky="e", padx=20, pady=(20, 5))
+        self.client_logo.grid(row=0, column=1, sticky="e", padx=20, pady=(8, 5))
         self.server_logo = ctk.CTkLabel(
             self.server_frame, image=self._logo_img, text="", fg_color="transparent")
-        self.server_logo.grid(row=0, column=0, sticky="e", padx=20, pady=(20, 10))
+        self.server_logo.grid(row=0, column=0, sticky="e", padx=20, pady=(8, 10))
 
     def _atalho_enter(self, event):
         if self.tabs.get() == "Modo servidor":
