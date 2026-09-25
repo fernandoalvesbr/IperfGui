@@ -6,6 +6,9 @@ import os
 import re
 import socket
 import queue
+import json
+import tempfile
+from pathlib import Path
 import base64
 from io import BytesIO
 import ipaddress
@@ -271,6 +274,7 @@ class IperfApp(ctk.CTk):
         self.current_y = []
         self.current_line = None
 
+        self.historico_ips = self._carregar_historico_ips()
         self.criar_interface()
         self.criar_interface_servidor()
         self.after(100, self._processar_eventos_servidor)
@@ -280,6 +284,49 @@ class IperfApp(ctk.CTk):
         
         self.bind('<Return>', self._atalho_enter)
         self.bind('<KP_Enter>', self._atalho_enter)
+
+    def _caminho_historico_ips(self):
+        if sys.platform == "win32":
+            base = Path(os.environ.get("APPDATA") or Path.home() / "AppData" / "Roaming")
+        else:
+            base = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
+        return base / "IperfGui" / "historico_ips.json"
+
+    def _carregar_historico_ips(self):
+        try:
+            dados = json.loads(self._caminho_historico_ips().read_text(encoding="utf-8"))
+            if not isinstance(dados, list):
+                return []
+            return list(dict.fromkeys(ip.strip() for ip in dados
+                                      if isinstance(ip, str) and ip.strip()))[:30]
+        except (OSError, ValueError):
+            return []
+
+    def _opcoes_ip(self):
+        return ["200.152.98.6"] + [ip for ip in self.historico_ips if ip != "200.152.98.6"]
+
+    def _memorizar_ip(self, ip):
+        self.historico_ips = [ip] + [host for host in self.historico_ips if host != ip]
+        self.historico_ips = self.historico_ips[:30]
+        self.entry_ip.configure(values=self._opcoes_ip())
+        self.entry_ip.set(ip)
+        caminho = self._caminho_historico_ips()
+        temporario = None
+        try:
+            caminho.parent.mkdir(parents=True, exist_ok=True)
+            with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", dir=caminho.parent,
+                                             delete=False) as arquivo:
+                temporario = Path(arquivo.name)
+                json.dump(self.historico_ips, arquivo, ensure_ascii=False, indent=2)
+            temporario.replace(caminho)
+        except OSError:
+            self.log("[AVISO] Não foi possível salvar o histórico de IPs neste computador.")
+        finally:
+            if temporario is not None:
+                try:
+                    temporario.unlink(missing_ok=True)
+                except OSError:
+                    pass
 
     def criar_interface(self):
         self.tabs = ctk.CTkTabview(self, fg_color="#282a36", anchor="nw")
@@ -299,9 +346,10 @@ class IperfApp(ctk.CTk):
         server_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=20, pady=(0, 10))
 
         ctk.CTkLabel(server_frame, text="IP/Host:").grid(row=0, column=0, sticky="w", padx=(0, 8))
-        self.entry_ip = ctk.CTkEntry(server_frame, placeholder_text="Ex: 192.168.1.100", width=220, border_color="#44475a")
+        self.entry_ip = ctk.CTkComboBox(server_frame, values=self._opcoes_ip(),
+                                             state="normal", width=220, border_color="#44475a")
         self.entry_ip.grid(row=0, column=1, sticky="w")
-        self.entry_ip.insert(0, "200.152.98.6")
+        self.entry_ip.set(self.historico_ips[0] if self.historico_ips else "200.152.98.6")
 
         ctk.CTkLabel(server_frame, text="Porta:").grid(row=0, column=2, sticky="w", padx=(30, 8))
         self.entry_port = ctk.CTkEntry(server_frame, width=80, border_color="#44475a")
@@ -701,6 +749,7 @@ class IperfApp(ctk.CTk):
         self.console.delete("1.0", "end")
         self.console.configure(state="disabled")
 
+        self._memorizar_ip(ip)
         self.current_x = []
         self.current_y = []
         

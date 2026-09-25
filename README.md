@@ -62,3 +62,13 @@ A saída do iperf3 aparece no terminal e o gráfico acompanha a largura de banda
 Mbps, somando os fluxos paralelos e separando TX/RX nos testes bidirecionais.
 O servidor continua disponível para novos testes até ser parado. A aba **Modo
 cliente** mantém os controles existentes; ENTER atua na aba selecionada.
+
+### Histórico de IPs no cliente
+
+O campo **IP/Host** permite digitar ou selecionar um endereço pela seta. Ao iniciar
+um teste, o endereço é salvo no histórico dos últimos 30 IPs/hosts, sem duplicatas.
+O histórico é mantido entre aberturas e o endereço mais recente fica selecionado.
+O IP padrão `200.152.98.6` aparece sempre no início da lista; os demais seguem
+a ordem dos mais recentes, sem repetir o padrão.
+Os dados ficam em `~/.config/IperfGui/historico_ips.json` (ou `XDG_CONFIG_HOME`)
+no Linux e em `%APPDATA%/IperfGui/historico_ips.json` no Windows.
