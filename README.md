@@ -50,3 +50,15 @@ Controle total sobre os parâmetros suportados pelo motor do `iperf3`:
 3. Selecione o **Protocolo** e a **Direção** desejados.
 4. Ajuste as **Threads** e o **Tempo** conforme necessário.
 5. Pressione `ENTER` ou clique em **INICIAR** para disparar os testes.
+
+### Modo servidor
+
+Selecione a aba **Modo servidor** para receber testes neste computador. O terminal
+mostra o IP local ao abrir a aplicação. Ajuste a **Porta** se necessário (padrão
+**5201**) e clique em **INICIAR SERVIDOR**. O mesmo botão passa a **PARAR SERVIDOR**.
+A porta fica bloqueada enquanto o servidor está em execução.
+
+A saída do iperf3 aparece no terminal e o gráfico acompanha a largura de banda em
+Mbps, somando os fluxos paralelos e separando TX/RX nos testes bidirecionais.
+O servidor continua disponível para novos testes até ser parado. A aba **Modo
+cliente** mantém os controles existentes; ENTER atua na aba selecionada.
