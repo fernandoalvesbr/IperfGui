@@ -7,6 +7,8 @@ import re
 import socket
 import queue
 import json
+import ast
+from tkinter import messagebox
 import tempfile
 from pathlib import Path
 import base64
@@ -21,6 +23,39 @@ import matplotlib
 matplotlib.use("TkAgg")
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+
+# Aumente esta versão ao publicar uma nova atualização do script na branch main.
+APP_VERSION = (1, 1, 0)
+UPDATE_URL = "https://raw.githubusercontent.com/fernandoalvesbr/IperfGui/main/iperf3gui.py"
+
+
+def versao_do_script(conteudo):
+    tree = ast.parse(conteudo)
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+                isinstance(target, ast.Name) and target.id == "APP_VERSION"
+                for target in node.targets):
+            version = ast.literal_eval(node.value)
+            if (isinstance(version, tuple) and len(version) == 3
+                    and all(type(part) is int and part >= 0 for part in version)):
+                return version
+    return (0, 0, 0)
+
+
+def gravar_script_atomico(caminho, conteudo, modo):
+    temporario = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=caminho.parent, delete=False) as arquivo:
+            temporario = Path(arquivo.name)
+            arquivo.write(conteudo)
+            arquivo.flush()
+            os.fsync(arquivo.fileno())
+        temporario.chmod(modo)
+        temporario.replace(caminho)
+    finally:
+        if temporario is not None:
+            temporario.unlink(missing_ok=True)
+
 
 # Logo MLS em PNG transparente, incorporado para dispensar arquivos externos.
 MLS_LOGO_BASE64 = (
@@ -252,6 +287,10 @@ class IperfApp(ctk.CTk):
         self.minsize(780, 700)
         self.configure(fg_color="#1e1e2e")
         
+        self.update_events = queue.Queue()
+        self.update_busy = False
+        self.pending_update = None
+        self.script_path = Path(__file__).resolve()
         self.server_process = None
         self.server_events = queue.Queue()
         self.server_stop = threading.Event()
@@ -284,6 +323,103 @@ class IperfApp(ctk.CTk):
         
         self.bind('<Return>', self._atalho_enter)
         self.bind('<KP_Enter>', self._atalho_enter)
+        self.after(100, self._processar_atualizacoes)
+        self.after(1500, lambda: self.verificar_atualizacoes(automatico=True))
+
+    def verificar_atualizacoes(self, automatico=False):
+        if self.update_busy:
+            return
+        if self.pending_update is not None:
+            self._oferecer_atualizacao()
+            return
+        self.update_busy = True
+        self.update_button.configure(state="disabled")
+        self.update_status.configure(text="Verificando atualizações...")
+        threading.Thread(target=self._baixar_atualizacao, args=(automatico,), daemon=True).start()
+
+    def _baixar_atualizacao(self, automatico):
+        try:
+            original = self.script_path.read_bytes()
+            request = urllib.request.Request(UPDATE_URL, headers={
+                "User-Agent": "IperfGui", "Cache-Control": "no-cache"})
+            with urllib.request.urlopen(request, timeout=10) as response:
+                content = response.read(2 * 1024 * 1024 + 1)
+            if len(content) > 2 * 1024 * 1024:
+                raise ValueError("O arquivo de atualização excede o tamanho permitido.")
+            version = versao_do_script(content)
+            if version <= APP_VERSION:
+                self.update_events.put(("current", automatico))
+                return
+            compile(content, str(self.script_path), "exec")
+            self.update_events.put(("available", (version, content, original)))
+        except Exception as exc:
+            self.update_events.put(("error", (automatico, str(exc))))
+
+    def _processar_atualizacoes(self):
+        try:
+            kind, value = self.update_events.get_nowait()
+        except queue.Empty:
+            pass
+        else:
+            self.update_busy = False
+            self.update_button.configure(state="normal")
+            if kind == "available":
+                self.pending_update = value
+                self.update_button.configure(text="Atualizar e reiniciar")
+                self.update_status.configure(text="Nova versão: " + ".".join(map(str, value[0])))
+                if not self._teste_ativo():
+                    self._oferecer_atualizacao()
+            elif kind == "current":
+                self.update_status.configure(text="Versão " + ".".join(map(str, APP_VERSION)) + " — atualizada")
+                if not value:
+                    messagebox.showinfo("Atualizações", "Você já está na versão mais recente.", parent=self)
+            else:
+                automatico, error = value
+                self.update_status.configure(text="Não foi possível verificar atualizações.")
+                if not automatico:
+                    messagebox.showerror("Atualizações", error, parent=self)
+        self.after(100, self._processar_atualizacoes)
+
+    def _teste_ativo(self):
+        return (self.server_running or self.btn_start.cget("state") == "disabled"
+                or (self.process is not None and self.process.poll() is None))
+
+    def _oferecer_atualizacao(self):
+        if self._teste_ativo():
+            messagebox.showinfo("Atualizações", "Pare o teste e o servidor antes de atualizar.", parent=self)
+            return
+        version, content, original = self.pending_update
+        version_text = ".".join(map(str, version))
+        if not messagebox.askyesno(
+                "Atualização disponível",
+                f"Instalar a versão {version_text} do GitHub e reiniciar?\n\n"
+                "O script atual será guardado em iperf3gui.py.bak.\n"
+                "Seu histórico de IPs será preservado.", parent=self):
+            return
+        # A caixa de diálogo processa eventos; confirme novamente antes da troca.
+        if self._teste_ativo():
+            messagebox.showinfo("Atualizações", "Pare o teste e o servidor antes de atualizar.", parent=self)
+            return
+        installed = False
+        try:
+            if self.script_path.read_bytes() != original:
+                self.pending_update = None
+                self.update_button.configure(text="Verificar atualizações")
+                raise RuntimeError("O script foi alterado desde a consulta. Verifique as atualizações novamente.")
+            mode = self.script_path.stat().st_mode & 0o777
+            backup = self.script_path.with_suffix(self.script_path.suffix + ".bak")
+            gravar_script_atomico(backup, original, mode)
+            gravar_script_atomico(self.script_path, content, mode)
+            installed = True
+            os.execv(sys.executable, [sys.executable, str(self.script_path), *sys.argv[1:]])
+        except Exception as exc:
+            error = str(exc)
+            if installed:
+                try:
+                    gravar_script_atomico(self.script_path, original, mode)
+                except OSError as rollback_error:
+                    error += f"\nRestaure o arquivo .bak manualmente: {rollback_error}"
+            messagebox.showerror("Não foi possível atualizar", error, parent=self)
 
     def _caminho_historico_ips(self):
         if sys.platform == "win32":
@@ -329,6 +465,14 @@ class IperfApp(ctk.CTk):
                     pass
 
     def criar_interface(self):
+        update_bar = ctk.CTkFrame(self, fg_color="transparent")
+        update_bar.pack(fill="x", padx=20, pady=(10, 0))
+        self.update_status = ctk.CTkLabel(
+            update_bar, text="Versão " + ".".join(map(str, APP_VERSION)))
+        self.update_status.pack(side="left")
+        self.update_button = ctk.CTkButton(
+            update_bar, text="Verificar atualizações", command=self.verificar_atualizacoes)
+        self.update_button.pack(side="right")
         self.tabs = ctk.CTkTabview(self, fg_color="#282a36", anchor="nw")
         self.tabs.pack(fill="both", expand=True, padx=20, pady=20)
         self.main_frame = self.tabs.add("Modo cliente")

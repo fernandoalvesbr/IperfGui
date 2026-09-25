@@ -72,3 +72,21 @@ O IP padrão `200.152.98.6` aparece sempre no início da lista; os demais seguem
 a ordem dos mais recentes, sem repetir o padrão.
 Os dados ficam em `~/.config/IperfGui/historico_ips.json` (ou `XDG_CONFIG_HOME`)
 no Linux e em `%APPDATA%/IperfGui/historico_ips.json` no Windows.
+
+### Atualização do script
+
+Ao abrir, o aplicativo verifica em segundo plano se há uma versão mais recente
+na branch `main` de `fernandoalvesbr/IperfGui`. Também é possível usar o botão
+**Verificar atualizações**, disponível nas duas abas. Sem internet, o aplicativo
+continua funcionando normalmente.
+
+Após sua confirmação em **Atualizar e reiniciar**, o aplicativo valida a sintaxe
+do novo script, salva o anterior em `iperf3gui.py.bak`, substitui o arquivo e
+reinicia com o mesmo Python. Pare qualquer teste ou servidor antes de atualizar.
+O histórico de IPs permanece na pasta de configurações do usuário.
+
+Para publicar uma atualização, aumente `APP_VERSION` (por exemplo, de `(1, 1, 0)`
+para `(1, 1, 1)`) e envie o script para `main`. Alterações apenas no README não
+disparam atualização. A primeira instalação deste recurso exige copiar o script
+novo ou executar `git pull`. Dependências novas ainda precisam ser instaladas
+separadamente. A pasta do script precisa permitir escrita.
