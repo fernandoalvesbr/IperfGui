@@ -25,7 +25,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 # Aumente esta versão ao publicar uma nova atualização do script na branch main.
-APP_VERSION = (1, 1, 1)
+APP_VERSION = (1, 1, 2)
 UPDATE_URL = "https://raw.githubusercontent.com/fernandoalvesbr/IperfGui/main/iperf3gui.py"
 
 
@@ -283,8 +283,12 @@ class IperfApp(ctk.CTk):
         super().__init__()
         
         self.title("iPerf3 - Teste Ponto a Ponto")
-        self.geometry("850x880") # Janela ligeiramente mais alta para respirar melhor
-        self.minsize(780, 700)
+        scale = self._get_window_scaling()
+        width = min(850, int((self.winfo_screenwidth() - 60) / scale))
+        height = min(880, int((self.winfo_screenheight() - 120) / scale))
+        self.minsize(min(480, width), min(360, height))
+        self.geometry(f"{width}x{height}")
+        self.resizable(True, True)
         self.configure(fg_color="#1e1e2e")
         
         self.update_events = queue.Queue()
@@ -320,11 +324,61 @@ class IperfApp(ctk.CTk):
         self.protocol("WM_DELETE_WINDOW", self._fechar)
         self._carregar_logo()
         self.atualizar_controles_udp()
+        self._compact_layout = None
+        self.bind("<Configure>", self._adaptar_layout, add="+")
         
         self.bind('<Return>', self._atalho_enter)
         self.bind('<KP_Enter>', self._atalho_enter)
         self.after(100, self._processar_atualizacoes)
         self.after(1500, lambda: self.verificar_atualizacoes(automatico=True))
+
+    def _adaptar_layout(self, event):
+        if event.widget is not self:
+            return
+        compact = event.width / self._get_window_scaling() < 760
+        if compact == self._compact_layout:
+            return
+        self._compact_layout = compact
+        address = self.client_address_frame
+        # Mantém o IP editável e leva a porta para outra linha em janelas estreitas.
+        if not hasattr(self, "client_port_label"):
+            self.client_port_label = address.grid_slaves(row=0, column=2)[0]
+        self.entry_ip.grid_configure(sticky="ew")
+        address.columnconfigure(1, weight=1)
+        self.client_port_label.grid_configure(
+            row=1 if compact else 0, column=0 if compact else 2,
+            padx=(0, 8) if compact else (20, 8), pady=(8, 0) if compact else 0)
+        self.entry_port.grid_configure(
+            row=1 if compact else 0, column=1 if compact else 3,
+            pady=(8, 0) if compact else 0)
+        self.client_params_frame.grid_configure(
+            row=4 if compact else 0, column=0 if compact else 2,
+            columnspan=2 if compact else 1, rowspan=1 if compact else 4,
+            pady=(12, 0) if compact else 0)
+        self.client_config_frame.columnconfigure(2, weight=0 if compact else 1)
+        for index, button in enumerate((self.btn_start, self.btn_stop, self.btn_clear)):
+            button.grid_configure(row=index if compact else 0,
+                                  column=0 if compact else index,
+                                  columnspan=3 if compact else 1,
+                                  padx=0 if compact else 5, pady=3 if compact else 0)
+        self.server_button.grid_configure(row=1 if compact else 0,
+                                          column=0 if compact else 2,
+                                          columnspan=4 if compact else 1,
+                                          padx=0 if compact else (20, 0),
+                                          pady=(10, 0) if compact else 0)
+        self.server_clear_button.grid_configure(row=2 if compact else 0,
+                                                column=0 if compact else 3,
+                                                columnspan=4 if compact else 1,
+                                                padx=0 if compact else (10, 0),
+                                                pady=(8, 0) if compact else 0)
+        self.ax.set_title("Largura de banda (Mbps)" if compact else
+                          "Comparativo de Largura de Banda (Mbps)",
+                          color="#f8f8f2", weight="bold", fontsize=11)
+        self.server_ax.set_title("Servidor — Banda (Mbps)" if compact else
+                                 "Largura de Banda do Servidor (Mbps)",
+                                 color="#f8f8f2", weight="bold", fontsize=11)
+        self.canvas.draw_idle()
+        self.server_canvas.draw_idle()
 
     def verificar_atualizacoes(self, automatico=False):
         if self.update_busy:
@@ -468,7 +522,7 @@ class IperfApp(ctk.CTk):
         update_bar = ctk.CTkFrame(self, fg_color="transparent")
         update_bar.pack(fill="x", padx=20, pady=(10, 0))
         self.update_status = ctk.CTkLabel(
-            update_bar, text="Versão " + ".".join(map(str, APP_VERSION)))
+            update_bar, text="Versão " + ".".join(map(str, APP_VERSION)), wraplength=210)
         self.update_status.pack(side="left")
         self.update_button = ctk.CTkButton(
             update_bar, text="Verificar atualizações", command=self.verificar_atualizacoes)
@@ -492,6 +546,7 @@ class IperfApp(ctk.CTk):
         label_server.grid(row=0, column=0, sticky="w", padx=20, pady=(8, 5))
 
         server_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.client_address_frame = server_frame
         server_frame.grid(row=1, column=0, columnspan=2, sticky="ew", padx=20, pady=(0, 10))
 
         ctk.CTkLabel(server_frame, text="IP/Host:").grid(row=0, column=0, sticky="w", padx=(0, 8))
@@ -513,6 +568,7 @@ class IperfApp(ctk.CTk):
         label_config.grid(row=3, column=0, columnspan=2, sticky="w", padx=20, pady=(0, 5))
 
         config_frame = ctk.CTkFrame(self.main_frame, fg_color="transparent")
+        self.client_config_frame = config_frame
         config_frame.grid(row=4, column=0, columnspan=2, sticky="ew", padx=20, pady=(0, 10))
         
         # Proporção simétrica perfeita para as 3 colunas de configuração
@@ -533,6 +589,7 @@ class IperfApp(ctk.CTk):
 
         # Col 2: Parâmetros
         params_frame = ctk.CTkFrame(config_frame, fg_color="transparent")
+        self.client_params_frame = params_frame
         params_frame.grid(row=0, column=2, rowspan=4, sticky="nw")
         ctk.CTkLabel(params_frame, text="Parâmetros:", font=ctk.CTkFont(size=12, weight="bold"), text_color="#bd93f9").grid(row=0, column=0, columnspan=2, sticky="w", pady=(0, 6))
         
@@ -612,6 +669,7 @@ class IperfApp(ctk.CTk):
         ctk.CTkLabel(frame, text="Servidor iPerf3", font=ctk.CTkFont(size=16, weight="bold")).grid(
             row=0, column=0, sticky="w", padx=20, pady=(8, 10))
         controls = ctk.CTkFrame(frame, fg_color="transparent")
+        self.server_controls = controls
         controls.grid(row=1, column=0, sticky="ew", padx=20, pady=10)
         controls.columnconfigure(2, weight=1)
         ctk.CTkLabel(controls, text="Porta:").grid(row=0, column=0, padx=(0, 8))
@@ -857,7 +915,7 @@ class IperfApp(ctk.CTk):
         self.ax.clear()
         self.ax.set_facecolor('#191a21')
         self.ax.tick_params(colors='#f8f8f2', labelsize=9)
-        self.ax.set_title("Comparativo de Largura de Banda (Mbps)", color='#f8f8f2', weight='bold', fontsize=11)
+        self.ax.set_title("Largura de banda (Mbps)" if self._compact_layout else "Comparativo de Largura de Banda (Mbps)", color='#f8f8f2', weight='bold', fontsize=11)
         self.ax.set_xlabel("Tempo (segundos)", color='#f8f8f2', fontsize=9)
         self.ax.set_ylabel("Velocidade (Mbps)", color='#f8f8f2', fontsize=9)
         self.ax.grid(True, color='#44475a', linestyle='--', alpha=0.3)
